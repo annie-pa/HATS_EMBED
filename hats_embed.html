@@ -2,19 +2,18 @@
 <html lang="en">
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>HATS API Embed</title>
+<title>HATS RolledEvent by id</title>
 <style>
   body{font-family:system-ui,Segoe UI,Roboto,Arial;margin:0;padding:12px;color:#222}
   .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:8px 0}
   input,button{padding:6px 8px;border:1px solid #ccc;border-radius:6px;font-size:13px}
-  button{background:#2563eb;color:#fff;border:0;cursor:pointer}
-  button:disabled{opacity:.6;cursor:not-allowed}
+  button{background:#2563eb;color:#fff;border:0;cursor:pointer} button:disabled{opacity:.6}
   .hint{font-size:12px;color:#666}
   pre{background:#111;color:#eee;border-radius:8px;padding:10px;max-height:360px;overflow:auto;font-size:12px;margin:8px 0 0}
 </style>
 <body>
-  <h3 style="margin:0 0 6px">HATS API (Experience Builder Embed)</h3>
-  <div class="hint">Paste a Bearer token, then query by <b>EventId</b> or by <b>StateRoute + SRMP</b>. If you click a feature in ExB with an <code>EventId</code>, this panel will auto-fill and fetch.</div>
+  <h3 style="margin:0 0 6px">HATS RolledEvent (by <code>id</code>)</h3>
+  <div class="hint">Paste a Bearer token, enter an <b>id</b>, click Fetch. If a feature is selected in Experience Builder and it has <code>id</code>/<code>EventId</code>/<code>AssetId</code>, the id will auto-fill and fetch.</div>
 
   <div class="row">
     <label>API
@@ -26,20 +25,10 @@
   </div>
 
   <div class="row">
-    <label>EventId
-      <input id="eid" placeholder="e.g., 1754946" size="12">
+    <label>id
+      <input id="rid" placeholder="e.g., 1754946" size="14">
     </label>
-    <button id="btnRolled">Get Rolled Event</button>
-  </div>
-
-  <div class="row">
-    <label>StateRoute
-      <input id="sr" placeholder="e.g., I-5" size="10">
-    </label>
-    <label>SRMP
-      <input id="mp" placeholder="e.g., 163.72" size="8">
-    </label>
-    <button id="btnRamp">Get Ramps (SR + SRMP)</button>
+    <button id="btn">Get Rolled Event</button>
   </div>
 
   <div id="stat" class="hint">Idle.</div>
@@ -48,15 +37,14 @@
 <script>
 const $ = id => document.getElementById(id);
 
-function buildOpts(token, isPost){
+function buildOpts(token){
   const h = { 'Accept':'application/json' };
-  if (isPost) h['Content-Type'] = 'application/json';
   if (token) h['Authorization'] = 'Bearer ' + token;
-  return { method: isPost ? 'POST':'GET', headers: h };
+  return { method: 'GET', headers: h };
 }
 
 async function call(url, opts){
-  $('stat').textContent = (opts.method || 'GET') + ' ' + url;
+  $('stat').textContent = 'GET ' + url;
   try{
     const r = await fetch(url, opts);
     const t = await r.text();
@@ -64,34 +52,17 @@ async function call(url, opts){
     $('stat').textContent = `HTTP ${r.status}`;
   }catch(e){
     $('out').textContent = String(e);
-    $('stat').textContent = 'Request failed';
+    $('stat').textContent = 'Request failed (likely CORS if it says "Failed to fetch").';
   }
 }
 
-$('btnRolled').onclick = async () => {
+$('btn').onclick = async () => {
   const base = $('api').value.replace(/\/$/, '');
-  const id   = $('eid').value.trim();
+  const id   = $('rid').value.trim();
   const tok  = $('tok').value.trim();
-  if(!id){ $('stat').textContent = 'Enter EventId'; return; }
-  // Some deployments use ?eventId, others ?id — try both
-  const urls = [
-    `${base}/api/Rollup/GetRolledEvent?eventId=${encodeURIComponent(id)}`,
-    `${base}/api/Rollup/GetRolledEvent?id=${encodeURIComponent(id)}`
-  ];
-  for (const u of urls){
-    await call(u, buildOpts(tok, false));
-    if ($('stat').textContent.startsWith('HTTP 2')) return; // 200/201/etc
-  }
-};
-
-$('btnRamp').onclick = async () => {
-  const base = $('api').value.replace(/\/$/, '');
-  const sr   = $('sr').value.trim();
-  const mp   = $('mp').value.trim();
-  const tok  = $('tok').value.trim();
-  if(!sr || !mp){ $('stat').textContent = 'Enter StateRoute and SRMP'; return; }
-  const url = `${base}/GetStateRouteRampsByStateRouteAndSRMP`;
-  await call(url, { ...buildOpts(tok, true), body: JSON.stringify({ stateRoute: sr, srmp: Number(mp) }) });
+  if(!id){ $('stat').textContent = 'Enter id'; return; }
+  const url = `${base}/api/Rollup/GetRolledEvent?id=${encodeURIComponent(id)}`;
+  await call(url, buildOpts(tok));
 };
 
 // Listen for selection messages from Experience Builder
@@ -100,10 +71,10 @@ window.addEventListener('message', (e)=>{
         || e.data?.feature?.attributes
         || e.data?.attributes || null;
   if(!a) return;
-  const id = a.EventId ?? a.eventId ?? a.EVENTID ?? null;
+  const id = a.id ?? a.ID ?? a.EventId ?? a.eventId ?? a.AssetId ?? a.ASSETID ?? null;
   if (id){
-    $('eid').value = id;
-    $('btnRolled').click();
+    $('rid').value = id;
+    $('btn').click();
   }
 });
 </script>
