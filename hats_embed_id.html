@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>HATS RolledEvent by id</title>
+<style>
+  body{font-family:system-ui,Segoe UI,Roboto,Arial;margin:0;padding:12px;color:#222}
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:8px 0}
+  input,button{padding:6px 8px;border:1px solid #ccc;border-radius:6px;font-size:13px}
+  button{background:#2563eb;color:#fff;border:0;cursor:pointer}
+  .hint{font-size:12px;color:#666}
+  pre{background:#111;color:#eee;border-radius:8px;padding:10px;max-height:360px;overflow:auto;font-size:12px;margin:8px 0 0}
+</style>
+<body>
+  <h3 style="margin:0 0 6px">HATS RolledEvent (by <code>id</code>)</h3>
+  <div class="hint">Paste a Bearer token, enter an <b>id</b>, click Fetch. If a selected feature has id/EventId/AssetId, it will auto-fill.</div>
+
+  <div class="row">
+    <label>API <input id="api" value="https://hats2.wsdot.wa.gov" size="36"></label>
+    <label style="flex:1">Bearer <input id="tok" type="password" placeholder="paste token (no 'Bearer ' prefix)"></label>
+  </div>
+
+  <div class="row">
+    <label>id <input id="rid" placeholder="e.g., 1754946" size="14"></label>
+    <button id="btn">Get Rolled Event</button>
+  </div>
+
+  <div id="stat" class="hint">Idle.</div>
+  <pre id="out">// results appear here</pre>
+
+<script>
+const $ = id => document.getElementById(id);
+function opts(tok){const h={'Accept':'application/json'};if(tok)h.Authorization='Bearer '+tok;return{headers:h};}
+async function run(){
+  const base=$('api').value.replace(/\/$/,''); const id=$('rid').value.trim(); const tok=$('tok').value.trim();
+  if(!id){$('stat').textContent='Enter id';return;}
+  const url=`${base}/api/Rollup/GetRolledEvent?id=${encodeURIComponent(id)}`;
+  $('stat').textContent='GET '+url;
+  try{const r=await fetch(url,opts(tok)); const t=await r.text(); $('out').textContent=t; $('stat').textContent='HTTP '+r.status;}
+  catch(e){$('out').textContent=String(e); $('stat').textContent='Request failed (likely CORS if "Failed to fetch").';}
+}
+$('btn').onclick=run;
+window.addEventListener('message',e=>{
+  const a=e.data?.records?.[0]?.feature?.attributes||e.data?.feature?.attributes||e.data?.attributes||{};
+  const id=a.id??a.ID??a.EventId??a.eventId??a.AssetId??a.ASSETID??null; if(id){$('rid').value=id; run();}
+});
+</script>
+</body>
+</html>
